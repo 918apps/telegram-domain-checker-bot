@@ -20,8 +20,9 @@ DOMAINS_TO_CHECK = os.getenv("DOMAINS_TO_CHECK")
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Sends a welcome message when the /start command is issued."""
-    await update.message.reply_text("Hello! I am a domain status checker bot.\n\nUse /check <domain> for a single check.\nUse /getid to find your Chat ID for setting up hourly reports.")
-
+    # This is our test message to see if deployments are working
+    await update.message.reply_text("DEPLOYMENT TEST v3 - If you see this, the new code is running.")
+    
 async def get_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Returns the user's chat ID."""
     chat_id = update.effective_chat.id
