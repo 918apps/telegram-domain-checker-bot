@@ -12,7 +12,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Get secrets from Railway's environment variables
-TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+TOKEN = os.getenv("7082647057:AAF_6jilIW0CyrgANUvbbH_k79HH9C7mm_w")
 ADMIN_CHAT_ID = os.getenv("5330994420")
 DOMAINS_TO_CHECK = os.getenv("nos138crm.store, nos138bj.space, nos138bg.store, venom55.net, venom55.com, venom55.live, venom55.club")
 
