@@ -97,7 +97,7 @@ def main():
     # Create and start the scheduler
     scheduler = AsyncIOScheduler()
     # Schedule the job to run every hour
-    scheduler.add_job(run_hourly_check, 'interval', hours=1, context=application)
+    scheduler.add_job(run_hourly_check, 'interval', minutes=30, context=application)
     scheduler.start()
     
     logger.info("Bot and scheduler started successfully!")
