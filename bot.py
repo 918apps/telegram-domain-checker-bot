@@ -1,57 +1,70 @@
-# bot.py - The Interactive Trigger
+# bot.py - The Interactive Trigger Bot
 import os
 import requests
 import logging
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
 
-# Set up logging
+# --- Setup ---
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
 logger = logging.getLogger(__name__)
 
-# Get secrets from Railway variables
+# --- Get Secrets from Railway Variables ---
 TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-WEBHOOK_URL = os.getenv("WEBHOOK_URL") # This will be the URL to trigger our cron job
+WEBHOOK_URL = os.getenv("WEBHOOK_URL")
 ADMIN_CHAT_ID = os.getenv("ADMIN_CHAT_ID")
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+# --- Command Handlers ---
+
+async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Replies when the /start command is sent."""
+    logger.info("Received /start command.")
     await update.message.reply_text("Hello! I am the interactive bot. Send /checknow to get an instant report.")
 
-async def check_now(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def checknow_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Triggers the reporting script via a webhook."""
-    # First, check if the person sending the command is the admin
+    logger.info("Received /checknow command.")
+
+    # 1. Check if the user is authorized
     if str(update.effective_chat.id) != ADMIN_CHAT_ID:
+        logger.warning(f"Unauthorized user {update.effective_chat.id} tried to run /checknow.")
         await update.message.reply_text("Sorry, you are not authorized to use this command.")
         return
 
-    await update.message.reply_text("On it! Triggering the report now...")
-    logger.info("Received /checknow command. Triggering webhook.")
-    
+    # 2. Check if the webhook URL is configured
     if not WEBHOOK_URL:
-        logger.error("WEBHOOK_URL is not set!")
-        await update.message.reply_text("Error: The webhook URL is not configured.")
+        logger.error("FATAL: WEBHOOK_URL environment variable is not set!")
+        await update.message.reply_text("Error: The report webhook URL is not configured on my end.")
         return
         
+    await update.message.reply_text("On it! Triggering the report job now...")
+    
+    # 3. Try to call the webhook
     try:
-        # This sends a request to the special URL to run our cron job script
+        logger.info(f"Calling webhook: {WEBHOOK_URL}")
         response = requests.post(WEBHOOK_URL)
-        response.raise_for_status()
+        response.raise_for_status()  # This will raise an error for 4xx or 5xx responses
         logger.info("Webhook triggered successfully.")
     except Exception as e:
-        logger.error(f"Failed to trigger webhook: {e}")
-        await update.message.reply_text("Error: Could not trigger the report job.")
+        logger.error(f"CRITICAL: Failed to trigger webhook. Error: {e}")
+        await update.message.reply_text("Error: There was a problem triggering the report job.")
+
+# --- Main Application Setup ---
 
 def main():
     """Starts the interactive bot."""
+    if not TOKEN:
+        logger.critical("FATAL ERROR: TELEGRAM_BOT_TOKEN is not set. The bot cannot start.")
+        return
+        
     application = Application.builder().token(TOKEN).build()
     
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(CommandHandler("checknow", check_now))
+    application.add_handler(CommandHandler("start", start_command))
+    application.add_handler(CommandHandler("checknow", checknow_command))
     
-    logger.info("Interactive bot started and listening for commands...")
+    logger.info("Interactive bot started successfully. Listening for commands...")
     application.run_polling()
 
 if __name__ == "__main__":
