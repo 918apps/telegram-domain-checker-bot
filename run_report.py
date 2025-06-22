@@ -1,58 +1,61 @@
 # run_report.py
 import os
 import requests
-import logging
-from telegram import Bot
-import asyncio
 
-# Set up logging to see output in Railway
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+# Get secrets from Railway's environment variables
+BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+CHAT_ID = os.getenv("ADMIN_CHAT_ID")
+DOMAINS_STR = os.getenv("DOMAINS_TO_CHECK")
 
-# --- CORRECT WAY TO GET VARIABLES ---
-# This looks for the VARIABLE NAME in Railway. Do not change these lines.
-TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-ADMIN_CHAT_ID = os.getenv("ADMIN_CHAT_ID")
-DOMAINS_TO_CHECK = os.getenv("DOMAINS_TO_CHECK")
-
-def check_single_domain(domain: str) -> str:
+def check_domain(domain: str) -> str:
     """Checks a single domain and returns a status string."""
     url = f"https://check.skiddle.id/?domain={domain}&json=true"
     try:
         response = requests.get(url, timeout=10)
         response.raise_for_status()
         data = response.json()
-        if domain in data:
-            blocked = data[domain].get("blocked", False)
-            status_text = "🔴 Blocked" if blocked else "🟢 Not Blocked"
-            return f"{domain}: {status_text}"
-        else:
-            return f"{domain}: ⚠️ Domain not found."
+        if domain in data and "blocked" in data[domain]:
+            status = "🔴 Blocked" if data[domain]["blocked"] else "🟢 Not Blocked"
+            return f"{domain}: {status}"
+        return f"{domain}: ⚠️ Invalid API response"
     except Exception as e:
-        logger.error(f"Error checking {domain}: {e}")
-        return f"{domain}: ⚠️ Error fetching data."
+        print(f"ERROR checking {domain}: {e}")
+        return f"{domain}: ⚠️ Request Failed"
 
-async def main():
-    """The main function that will be run by the cron job."""
-    logger.info("--- Cron Job Started: Running domain report ---")
-    
-    if not TOKEN or not ADMIN_CHAT_ID or not DOMAINS_TO_CHECK:
-        logger.error("Missing one or more required environment variables. Please check Railway Variables. Exiting.")
-        return
+def send_telegram_message(text: str):
+    """Sends a message directly to the Telegram API."""
+    print("Preparing to send Telegram message...")
+    api_url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+    payload = {
+        "chat_id": CHAT_ID,
+        "text": text,
+        "parse_mode": "Markdown"
+    }
+    try:
+        response = requests.post(api_url, json=payload)
+        response.raise_for_status()
+        print("Telegram message sent successfully.")
+    except Exception as e:
+        print(f"FATAL: Failed to send Telegram message: {e}")
+        print(f"Response from Telegram: {response.text if 'response' in locals() else 'N/A'}")
 
-    bot = Bot(token=TOKEN)
-    domains = [domain.strip() for domain in DOMAINS_TO_CHECK.split(',')]
-    report_lines = [" Domain Status Report:"]
-    
+# --- Main script logic ---
+if __name__ == "__main__":
+    print("--- Cron job script started. ---")
+    if not all([BOT_TOKEN, CHAT_ID, DOMAINS_STR]):
+        error_msg = "FATAL: One or more environment variables (TELEGRAM_BOT_TOKEN, ADMIN_CHAT_ID, DOMAINS_TO_CHECK) are missing."
+        print(error_msg)
+        # We can't send a Telegram message if the token/ID is missing, so we just exit.
+        exit()
+
+    domains = [domain.strip() for domain in DOMAINS_STR.split(',')]
+    report_lines = ["*Domain Status Report*"]
+
     for domain in domains:
         if domain:
-            status = check_single_domain(domain)
+            status = check_domain(domain)
             report_lines.append(status)
-            
-    final_report = "\n".join(report_lines)
-    
-    await bot.send_message(chat_id=ADMIN_CHAT_ID, text=final_report)
-    logger.info(f"Report sent successfully to Chat ID {ADMIN_CHAT_ID}.")
 
-if __name__ == "__main__":
-    asyncio.run(main())
+    final_report = "\n".join(report_lines)
+    send_telegram_message(final_report)
+    print("--- Cron job script finished. ---")
