@@ -1,3 +1,4 @@
+# bot.py
 import os
 import requests
 import logging
@@ -5,47 +6,28 @@ from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
-# Set up logging to see what the bot is doing
+# Set up logging so we can see what's happening in Railway
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
 logger = logging.getLogger(__name__)
 
-# Get secrets from Railway's environment variables
-TOKEN = os.getenv("7082647057:AAF_6jilIW0CyrgANUvbbH_k79HH9C7mm_w")
-ADMIN_CHAT_ID = os.getenv("5330994420")
-DOMAINS_TO_CHECK = os.getenv("nos138crm.store, nos138bj.space, nos138bg.store, venom55.net, venom55.com, venom55.live, venom55.club")
+# --- CORRECTLY GET SECRETS FROM RAILWAY VARIABLES ---
+# This looks for the VARIABLE NAME in Railway.
+TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+ADMIN_CHAT_ID = os.getenv("ADMIN_CHAT_ID")
+DOMAINS_TO_CHECK = os.getenv("DOMAINS_TO_CHECK")
 
-# --- Bot Command Handlers ---
+# --- COMMANDS ---
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """A simple start command to confirm the bot is online."""
-    await update.message.reply_text("Hello! I am online. Use /reportnow to get an instant report.")
+    """Replies when /start is sent."""
+    await update.message.reply_text("Hello! I am online and the scheduler is running.")
 
-async def check_domain_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Manually checks a single domain."""
-    if not context.args:
-        await update.message.reply_text("Usage: /check <domain.com>")
-        return
-    
-    domain = context.args[0]
-    status = await check_single_domain(domain)
-    await update.message.reply_text(status)
+# --- CORE LOGIC ---
 
-async def force_report(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """NEW: Forces an immediate check and sends the report."""
-    # Check if the person sending the command is the admin
-    if str(update.effective_chat.id) != ADMIN_CHAT_ID:
-        await update.message.reply_text("Sorry, only the admin can run this command.")
-        return
-
-    await update.message.reply_text("On it! Generating and sending the report now...")
-    await run_scheduled_check(context) # We just reuse the existing report function
-
-# --- Core Logic & Scheduled Task ---
-
-async def check_single_domain(domain: str) -> str:
-    """Checks a single domain and returns a status string."""
+def check_single_domain(domain: str) -> str:
+    """Checks one domain and returns a status string."""
     url = f"https://check.skiddle.id/?domain={domain}&json=true"
     try:
         response = requests.get(url, timeout=10)
@@ -62,11 +44,11 @@ async def check_single_domain(domain: str) -> str:
         return f"{domain}: ⚠️ Error fetching data."
 
 async def run_scheduled_check(context: ContextTypes.DEFAULT_TYPE):
-    """This function runs on a schedule OR when called by /reportnow."""
-    logger.info("--- Running domain check task ---")
+    """This is the function that runs every 30 minutes."""
+    logger.info("--- Scheduler triggered: Running domain check... ---")
     
     if not ADMIN_CHAT_ID or not DOMAINS_TO_CHECK:
-        logger.warning("ADMIN_CHAT_ID or DOMAINS_TO_CHECK is not set. Skipping check.")
+        logger.warning("ADMIN_CHAT_ID or DOMAINS_TO_CHECK is not set. Skipping scheduled report.")
         return
 
     domains = [domain.strip() for domain in DOMAINS_TO_CHECK.split(',')]
@@ -74,34 +56,34 @@ async def run_scheduled_check(context: ContextTypes.DEFAULT_TYPE):
     
     for domain in domains:
         if domain:
-            status = await check_single_domain(domain)
+            status = check_single_domain(domain)
             report_lines.append(status)
             
     final_report = "\n".join(report_lines)
     
     try:
         await context.bot.send_message(chat_id=ADMIN_CHAT_ID, text=final_report)
-        logger.info(f"Report sent successfully to Chat ID {ADMIN_CHAT_ID}.")
+        logger.info(f"Scheduled report sent successfully to Chat ID {ADMIN_CHAT_ID}.")
     except Exception as e:
-        logger.error(f"Failed to send report to {ADMIN_CHAT_ID}: {e}")
+        logger.error(f"Failed to send scheduled report: {e}")
 
-# --- Main Application Setup ---
+# --- MAIN SETUP ---
 
 def main():
-    """Start the bot and the scheduler."""
+    """Starts the bot and the scheduler."""
+    if not TOKEN:
+        logger.critical("FATAL ERROR: TELEGRAM_BOT_TOKEN environment variable is not set!")
+        return
+
     application = Application.builder().token(TOKEN).build()
 
-    # Register all our command handlers
     application.add_handler(CommandHandler("start", start))
-    application.add_handler(CommandHandler("check", check_domain_command))
-    application.add_handler(CommandHandler("reportnow", force_report)) # <-- NEW HANDLER
 
-    # Create and start the scheduler
     scheduler = AsyncIOScheduler()
     scheduler.add_job(run_scheduled_check, 'interval', minutes=30, context=application)
     scheduler.start()
     
-    logger.info("Bot and scheduler started successfully.")
+    logger.info("Bot and scheduler have started successfully.")
     
     application.run_polling()
 
