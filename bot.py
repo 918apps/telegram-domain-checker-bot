@@ -13,7 +13,6 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # --- CORRECTLY GET SECRETS FROM RAILWAY VARIABLES ---
-# This looks for the VARIABLE NAME in Railway.
 TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 ADMIN_CHAT_ID = os.getenv("ADMIN_CHAT_ID")
 DOMAINS_TO_CHECK = os.getenv("DOMAINS_TO_CHECK")
@@ -43,7 +42,7 @@ def check_single_domain(domain: str) -> str:
         logger.error(f"Error checking {domain}: {e}")
         return f"{domain}: ⚠️ Error fetching data."
 
-async def run_scheduled_check(application: Application):
+async def run_scheduled_check(application: Application): # <-- CORRECTED
     """This is the function that runs every 30 minutes."""
     logger.info("--- Scheduler triggered: Running domain check... ---")
     
@@ -62,8 +61,9 @@ async def run_scheduled_check(application: Application):
     final_report = "\n".join(report_lines)
     
     try:
-await application.bot.send_message(chat_id=ADMIN_CHAT_ID, text=final_report)
-logger.info(f"Scheduled report sent successfully to Chat ID {ADMIN_CHAT_ID}.")
+        # Use application.bot instead of context.bot
+        await application.bot.send_message(chat_id=ADMIN_CHAT_ID, text=final_report) # <-- CORRECTED
+        logger.info(f"Scheduled report sent successfully to Chat ID {ADMIN_CHAT_ID}.")
     except Exception as e:
         logger.error(f"Failed to send scheduled report: {e}")
 
@@ -80,7 +80,9 @@ def main():
     application.add_handler(CommandHandler("start", start))
 
     scheduler = AsyncIOScheduler()
-    scheduler.add_job(run_scheduled_check, 'interval', minutes=30, kwargs={'application': application})
+    # Pass application object via kwargs, which is the correct method
+    scheduler.add_job(run_scheduled_check, 'interval', minutes=30, kwargs={'application': application}) # <-- CORRECTED
+    scheduler.start()
     
     logger.info("Bot and scheduler have started successfully.")
     
