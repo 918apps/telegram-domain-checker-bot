@@ -43,7 +43,7 @@ def check_single_domain(domain: str) -> str:
         logger.error(f"Error checking {domain}: {e}")
         return f"{domain}: ⚠️ Error fetching data."
 
-async def run_scheduled_check(context: ContextTypes.DEFAULT_TYPE):
+async def run_scheduled_check(application: Application):
     """This is the function that runs every 30 minutes."""
     logger.info("--- Scheduler triggered: Running domain check... ---")
     
@@ -62,8 +62,8 @@ async def run_scheduled_check(context: ContextTypes.DEFAULT_TYPE):
     final_report = "\n".join(report_lines)
     
     try:
-        await context.bot.send_message(chat_id=ADMIN_CHAT_ID, text=final_report)
-        logger.info(f"Scheduled report sent successfully to Chat ID {ADMIN_CHAT_ID}.")
+await application.bot.send_message(chat_id=ADMIN_CHAT_ID, text=final_report)
+logger.info(f"Scheduled report sent successfully to Chat ID {ADMIN_CHAT_ID}.")
     except Exception as e:
         logger.error(f"Failed to send scheduled report: {e}")
 
@@ -80,8 +80,7 @@ def main():
     application.add_handler(CommandHandler("start", start))
 
     scheduler = AsyncIOScheduler()
-    scheduler.add_job(run_scheduled_check, 'interval', minutes=30, context=application)
-    scheduler.start()
+    scheduler.add_job(run_scheduled_check, 'interval', minutes=30, kwargs={'application': application})
     
     logger.info("Bot and scheduler have started successfully.")
     
