@@ -10,9 +10,9 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Get secrets from Railway's environment variables
-TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-ADMIN_CHAT_ID = os.getenv("ADMIN_CHAT_ID")
-DOMAINS_TO_CHECK = os.getenv("DOMAINS_TO_CHECK")
+TOKEN = os.getenv("7082647057:AAF_6jilIW0CyrgANUvbbH_k79HH9C7mm_w")
+ADMIN_CHAT_ID = os.getenv("5330994420")
+DOMAINS_TO_CHECK = os.getenv("odin55thor.com, modalnekat.online, pewe128jk.space, pewe128lk.store, pewe128ui.space")
 
 def check_single_domain(domain: str) -> str:
     """Checks a single domain and returns a status string."""
