@@ -81,7 +81,7 @@ def main():
 
     scheduler = AsyncIOScheduler()
     # Pass application object via kwargs, which is the correct method
-    scheduler.add_job(run_scheduled_check, 'interval', minutes=30, kwargs={'application': application}) # <-- CORRECTED
+   scheduler.add_job(run_scheduled_check, 'interval', minutes=30, kwargs={'application': application})
     scheduler.start()
     
     logger.info("Bot and scheduler have started successfully.")
