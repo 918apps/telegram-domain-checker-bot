@@ -9,10 +9,11 @@ import asyncio
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Get secrets from Railway's environment variables
-TOKEN = os.getenv("7082647057:AAF_6jilIW0CyrgANUvbbH_k79HH9C7mm_w")
-ADMIN_CHAT_ID = os.getenv("5330994420")
-DOMAINS_TO_CHECK = os.getenv("odin55thor.com, modalnekat.online, pewe128jk.space, pewe128lk.store, pewe128ui.space")
+# --- CORRECT WAY TO GET VARIABLES ---
+# This looks for the VARIABLE NAME in Railway. Do not change these lines.
+TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+ADMIN_CHAT_ID = os.getenv("ADMIN_CHAT_ID")
+DOMAINS_TO_CHECK = os.getenv("DOMAINS_TO_CHECK")
 
 def check_single_domain(domain: str) -> str:
     """Checks a single domain and returns a status string."""
@@ -36,7 +37,7 @@ async def main():
     logger.info("--- Cron Job Started: Running domain report ---")
     
     if not TOKEN or not ADMIN_CHAT_ID or not DOMAINS_TO_CHECK:
-        logger.error("Missing one or more required environment variables. Exiting.")
+        logger.error("Missing one or more required environment variables. Please check Railway Variables. Exiting.")
         return
 
     bot = Bot(token=TOKEN)
@@ -45,7 +46,7 @@ async def main():
     
     for domain in domains:
         if domain:
-            status = check_single_domain(domain) # Note: this is not async
+            status = check_single_domain(domain)
             report_lines.append(status)
             
     final_report = "\n".join(report_lines)
